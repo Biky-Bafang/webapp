@@ -218,6 +218,7 @@
 		text-align: center;
 		background-color: #1c1c1c;
 		width: 1100px;
+		max-width: 100vw;
 		margin: 0 auto;
 		position: relative;
 	}

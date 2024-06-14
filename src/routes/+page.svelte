@@ -1,6 +1,6 @@
 <script>
 	import { goto, onNavigate } from '$app/navigation';
-	import { devices } from '$lib/stores';
+	import { devices, consoleMessages } from '$lib/stores';
 	import { faChevronRight, faPersonBiking, faPlus } from '@fortawesome/free-solid-svg-icons';
 	import { Affix, Button, Flex, Text, UnstyledButton, Loader } from '@svelteuidev/core';
 	import Fa from 'svelte-fa';
@@ -75,6 +75,17 @@
 
 			// set device data to the parsed JSON
 			devices.set($devices.map((d) => (d.id === device.id ? { ...d, data: jsonData } : d)));
+
+			// add it to consoleMessages
+			if (!jsonData.type || !jsonData.value) return;
+			consoleMessages.update((messages) => [
+				...messages,
+				{
+					time: new Date().toLocaleTimeString(),
+					name: jsonData.type,
+					message: jsonData.value
+				}
+			]);
 		} catch (error) {
 			console.log('Error parsing JSON:', error);
 		}

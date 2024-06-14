@@ -1,0 +1,27 @@
+{
+	"name": "Biky App",
+	"short_name": "Biky",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#000000",
+	"theme_color": "#1f1f30",
+	"description": "Bafang E-Bike Editor",
+	"form_factor": "handheld",
+	"icons": [
+		{
+			"src": "pwa-64x64.png",
+			"type": "image/png",
+			"sizes": "64x64"
+		},
+		{
+			"src": "pwa-192x192.png",
+			"type": "image/png",
+			"sizes": "192x192"
+		},
+		{
+			"src": "pwa-512x512.png",
+			"type": "image/png",
+			"sizes": "512x512"
+		}
+	]
+}

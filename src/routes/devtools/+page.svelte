@@ -1,33 +1,35 @@
 <script>
-	let consoleMessages = [];
+	import { consoleMessages } from '$lib/stores';
+	import { Button } from '@svelteuidev/core';
 	// loop 20 times
 	// every 1 sec add a new message
-	setInterval(() => {
-		consoleMessages.push({
-			time: new Date().toLocaleTimeString(),
-			message: 'Hello world',
-			name: 'display'
-		});
-		consoleMessages = consoleMessages;
-	}, 1000);
 </script>
 
 <main>
+	<Button
+		color="gray"
+		variant="subtle"
+		on:click={() => {
+			consoleMessages.set([]);
+		}}>Clear</Button
+	>
 	<div class="consoleBox">
-		<pre>{#each consoleMessages as message}<p>[{message.time}] - {message.name}: {message.message}</p>{/each}</pre>
+		<pre>{#each $consoleMessages as message}<p>[{message.time}] - {message.name}: {message.message}</p>{/each}</pre>
 	</div>
 </main>
 
 <style>
 	main {
 		width: 1100px;
+		max-width: calc(100vw - 40px);
 		margin: 0 auto;
+		padding: 5px 20px;
 	}
 	.consoleBox {
 		background: #272727 !important;
-		padding: 5px 20px;
 		border-radius: 15px;
 		height: 350px;
 		overflow: auto;
+		padding: 5px 20px;
 	}
 </style>

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Biky</string>
+    <string name="title_activity_main">Biky</string>
+    <string name="package_name">nl.hexidev.biky</string>
+    <string name="custom_url_scheme">nl.hexidev.biky</string>
+</resources>

@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
 
 const devices = writable([]);
-export { devices };
+const consoleMessages = writable([]);
+export { devices, consoleMessages };
