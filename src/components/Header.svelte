@@ -2,9 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import logo from '$lib/images/logo.svg';
-	import { faBackward, faGear, faRightToBracket } from '@fortawesome/free-solid-svg-icons';
+	import { faRightToBracket } from '@fortawesome/free-solid-svg-icons';
 	import { UnstyledButton } from '@svelteuidev/core';
-	import Fa from 'svelte-fa';
 	let icons = [
 		{
 			icon: faRightToBracket,

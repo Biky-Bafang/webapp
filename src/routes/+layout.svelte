@@ -1,12 +1,17 @@
 <script>
-	import { colorScheme, SvelteUIProvider, UnstyledButton } from '@svelteuidev/core';
+	import { SvelteUIProvider, UnstyledButton } from '@svelteuidev/core';
 	import Header from '../components/Header.svelte';
 	import './styles.css';
-	import { fade, fly } from 'svelte/transition';
-	import { navigating, page } from '$app/stores';
+	import { page } from '$app/stores';
 	import { goto, onNavigate } from '$app/navigation';
-	import { faCode, faDownload, faGear, faPersonBiking } from '@fortawesome/free-solid-svg-icons';
+	import { faCode, faGear, faPersonBiking } from '@fortawesome/free-solid-svg-icons';
+	import { App as CapacitorApp } from '@capacitor/app';
 	import Fa from 'svelte-fa';
+	import { onMount } from 'svelte';
+	import { devices } from '$lib/stores';
+	import { Storage } from '@capacitor/storage';
+
+	export let data;
 
 	let icons = [
 		{
@@ -18,16 +23,64 @@
 			icon: faPersonBiking,
 			id: 'devices',
 			path: '/'
-		},
-		{
-			icon: faGear,
-			id: 'settings',
-			path: '/settings'
 		}
 	];
+	let pages = {
+		device: {
+			settings: {
+				color: '#2c2d2e',
+				edit: {
+					color: '#2c2d2e'
+				}
+			},
+			color: '#1c1d1e'
+		},
+		test: {
+			color: '#2c2d2e'
+		}
+	};
+	$: if ($page.url.pathname && typeof document !== 'undefined') {
+		try {
+			// set the appcolor of the app to the color of the page
+			const path = $page.url.pathname.split('/').splice(1);
+			let color = pages;
+			for (let i = 0; i < path.length; i++) {
+				if (!color[path[i]]) break;
+				color = color[path[i]];
+			}
+
+			document.documentElement.style.setProperty('--app-color', color.color);
+		} catch (e) {
+			alert(e);
+		}
+	}
 	onNavigate((navigation) => {
+		if (
+			navigation.from?.route.id.split('/').length > navigation.to?.route.id.split('/').length ||
+			navigation.to?.route.id == '/'
+		) {
+			document.documentElement.style.setProperty(
+				'--view-transition-old',
+				'slide-from-right-reverse'
+			);
+			document.documentElement.style.setProperty('--view-transition-new', 'slide-to-left-reverse');
+			// have new one a higher z-index and other 0
+			document.documentElement.style.setProperty('--view-transition-old-z-index', '1');
+			document.documentElement.style.setProperty('--view-transition-new-z-index', '0');
+			// duration
+			document.documentElement.style.setProperty('--view-transition-old-duration', '350ms');
+			document.documentElement.style.setProperty('--view-transition-new-duration', '350ms');
+		} else if (typeof document !== 'undefined') {
+			document.documentElement.style.setProperty('--view-transition-old', 'slide-to-left');
+			document.documentElement.style.setProperty('--view-transition-new', 'slide-from-right');
+			// have old one a higher z-index
+			document.documentElement.style.setProperty('--view-transition-old-z-index', '0');
+			document.documentElement.style.setProperty('--view-transition-new-z-index', '1');
+			// duration
+			document.documentElement.style.setProperty('--view-transition-old-duration', '350ms');
+			document.documentElement.style.setProperty('--view-transition-new-duration', '350ms');
+		}
 		// dont animate if navigation.to?.route.id contains settings
-		console.log(navigation.from?.route.id.includes('device'));
 		if (
 			!(navigation.to?.route.id.includes('device') || navigation.from?.route.id.includes('device'))
 		)
@@ -42,33 +95,52 @@
 				});
 		});
 	});
-	$: if (
-		$page.url.pathname == '/' &&
-		// check if document is defined
-		typeof document !== 'undefined'
-	) {
-		document.documentElement.style.setProperty('--view-transition-old', 'slide-from-right-reverse');
-		document.documentElement.style.setProperty('--view-transition-new', 'slide-to-left-reverse');
-		// have new one a higher z-index and other 0
-		document.documentElement.style.setProperty('--view-transition-old-z-index', '1');
-		document.documentElement.style.setProperty('--view-transition-new-z-index', '0');
-		// duration
-		document.documentElement.style.setProperty('--view-transition-old-duration', '350ms');
-		document.documentElement.style.setProperty('--view-transition-new-duration', '350ms');
-	} else if (typeof document !== 'undefined') {
-		document.documentElement.style.setProperty('--view-transition-old', 'slide-to-left');
-		document.documentElement.style.setProperty('--view-transition-new', 'slide-from-right');
-		// have old one a higher z-index
-		document.documentElement.style.setProperty('--view-transition-old-z-index', '0');
-		document.documentElement.style.setProperty('--view-transition-new-z-index', '1');
-		// duration
-		document.documentElement.style.setProperty('--view-transition-old-duration', '350ms');
-		document.documentElement.style.setProperty('--view-transition-new-duration', '350ms');
+	if (typeof window !== 'undefined') {
+		CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+			if (!canGoBack) {
+				CapacitorApp.exitApp();
+			} else {
+				window.history.back();
+			}
+		});
 	}
+
+	if (data.devices) {
+		devices.set(data.devices);
+	}
+	async function saveDevices(value) {
+		await Storage.set({
+			key: 'devices',
+			value: JSON.stringify(value)
+		});
+	}
+
+	// Load devices from Capacitor Storage
+	async function loadDevices() {
+		const { value } = await Storage.get({ key: 'devices' });
+		let valueJson = JSON.parse(value);
+		// filter value and only keep name and id
+		valueJson = valueJson.map((device) => {
+			return {
+				name: device.name,
+				id: device.id,
+				status: '‎ '
+			};
+		});
+		if (value) {
+			devices.set(valueJson);
+		}
+	}
+	onMount(() => {
+		loadDevices();
+		devices.subscribe((value) => {
+			saveDevices(value);
+		});
+	});
 </script>
 
 <SvelteUIProvider themeObserver={'dark'}>
-	<div class="app">
+	<div class="app" class:appcolor={$page.url.pathname.includes('device')}>
 		{#if !$page.url.pathname.includes('device')}
 			<header>
 				<Header />
@@ -182,16 +254,15 @@
 		/* add shadow */
 		box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 	}
-	.fly {
-		max-width: 100vw;
-		overflow: hidden;
-	}
 	.app {
 		display: flex;
 		flex-direction: column;
 		min-height: 100dvh;
 		margin: 0 auto;
 		overflow: hidden;
+	}
+	.appcolor {
+		background-color: var(--app-color, #1c1d1e);
 	}
 	header {
 		max-width: 1100px;
@@ -216,7 +287,6 @@
 		align-items: center;
 		padding: 5px;
 		text-align: center;
-		background-color: #1c1c1c;
 		width: 1100px;
 		max-width: 100vw;
 		margin: 0 auto;
@@ -227,7 +297,7 @@
 		position: absolute;
 		height: 100%;
 		width: 100vw;
-		background-color: #1c1c1c;
 		z-index: -1;
+		background-color: #1c1d1e;
 	}
 </style>

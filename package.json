@@ -11,6 +11,7 @@
 		"format": "prettier --write ."
 	},
 	"devDependencies": {
+		"@capacitor/assets": "^3.0.5",
 		"@capacitor/cli": "^6.1.0",
 		"@fontsource/fira-mono": "^4.5.10",
 		"@neoconfetti/svelte": "^1.0.0",
@@ -21,21 +22,27 @@
 		"prettier-plugin-svelte": "^3.1.2",
 		"svelte": "^4.2.7",
 		"svelte-check": "^3.6.0",
+		"svelte-tiny-slider": "^1.0.0",
 		"typescript": "^5.0.0",
 		"vite": "^5.0.3"
 	},
 	"type": "module",
 	"dependencies": {
+		"@capacitor-community/bluetooth-le": "^6.0.0",
 		"@capacitor/android": "^6.1.0",
+		"@capacitor/app": "^6.0.0",
 		"@capacitor/core": "^6.1.0",
 		"@capacitor/filesystem": "^6.0.0",
 		"@capacitor/geolocation": "^6.0.0",
+		"@capacitor/haptics": "^6.0.0",
+		"@capacitor/storage": "^1.2.5",
 		"@fortawesome/free-brands-svg-icons": "^6.5.2",
 		"@fortawesome/free-solid-svg-icons": "^6.5.2",
 		"@sveltejs/adapter-node": "^5.0.1",
 		"@sveltejs/adapter-static": "^3.0.2",
 		"@svelteuidev/composables": "^0.15.6",
 		"@svelteuidev/core": "^0.15.6",
+		"radix-icons-svelte": "^1.2.1",
 		"svelte-fa": "^4.0.2"
 	}
 }

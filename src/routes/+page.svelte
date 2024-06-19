@@ -1,10 +1,25 @@
 <script>
 	import { goto, onNavigate } from '$app/navigation';
-	import { devices, consoleMessages } from '$lib/stores';
-	import { faChevronRight, faPersonBiking, faPlus } from '@fortawesome/free-solid-svg-icons';
-	import { Affix, Button, Flex, Text, UnstyledButton, Loader } from '@svelteuidev/core';
+	import { devices, consoleMessages, modal } from '$lib/stores';
+	import {
+		faChevronRight,
+		faGear,
+		faLinkSlash,
+		faPersonBiking,
+		faPlus,
+		faTrash
+	} from '@fortawesome/free-solid-svg-icons';
+	import { Affix, Button, Flex, Text, UnstyledButton, Loader, Card } from '@svelteuidev/core';
+	import { BleClient, numberToUUID } from '@capacitor-community/bluetooth-le';
+	import { Haptics, ImpactStyle } from '@capacitor/haptics';
 	import Fa from 'svelte-fa';
 	import { fly } from 'svelte/transition';
+	import { onMount } from 'svelte';
+	import DeviceModal from '../components/DeviceModal.svelte';
+	import { faBluetoothB } from '@fortawesome/free-brands-svg-icons';
+	import { connectDevice, longpress, syncDevice } from '$lib/general';
+	import Header from '../components/Header.svelte';
+	import { dev } from '$app/environment';
 	const serviceUuid = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
 	const characteristicUuid = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
 	let scrollY = 0;
@@ -22,74 +37,104 @@
 				};
 		}
 	};
-	let accumulatedData = '';
+	let quickButtons = [
+		{
+			type: 'delete',
+			icon: faTrash,
+			color: 'red',
+			action: (device) => {
+				devices.set($devices.filter((d) => d.id !== device.id));
+			}
+		},
+		{
+			type: 'disconnect',
+			icon: faLinkSlash,
+			action: async (device) => {
+				await BleClient.disconnect(device.id);
+				return;
+			}
+		},
+		{
+			type: 'settings',
+			icon: faGear,
+			action: (device) => {
+				goto(`/device?id=${encodeURIComponent(device.id)}`);
+			}
+		}
+	];
 	async function addDevice() {
-		if (typeof navigator?.bluetooth === 'undefined') {
-			console.log('Bluetooth not supported');
-			return;
-		}
-		let device = await navigator.bluetooth.requestDevice({
-			filters: [
-				{
-					namePrefix: 'Biky'
-				},
-				{
-					services: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b']
-				}
-			]
-		});
-		$devices = [...$devices, { name: device.name, id: device.id, self: device }];
-	}
-	function hex2a(hexx) {
-		var hex = hexx.toString(); //force conversion
-		var str = '';
-		for (var i = 0; i < hex.length; i += 2)
-			str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
-		return str;
-	}
-	function handleCharacteristicValueChanged(event, device) {
-		let value = event.target.value;
-		let chunk = new TextDecoder().decode(value);
-		if (chunk.startsWith('ff')) {
-			accumulatedData = '';
-			chunk = chunk.slice(2);
-		} else if (accumulatedData.length <= 0) {
-			return;
-		}
-		chunk = hex2a(chunk);
-
-		console.log('Received chunk:', chunk);
-		accumulatedData += chunk;
-
-		// Assuming the transmission ends when a specific delimiter is found, e.g., "\n"
-		if (chunk.endsWith('}')) {
-			processData(accumulatedData, device);
-			accumulatedData = ''; // Reset for the next message
-		}
-	}
-
-	function processData(data, device) {
 		try {
-			let jsonData = JSON.parse(data);
-			console.log('Received JSON:', jsonData);
+			await Haptics.impact({ style: ImpactStyle.Light });
 
-			// set device data to the parsed JSON
-			devices.set($devices.map((d) => (d.id === device.id ? { ...d, data: jsonData } : d)));
-
-			// add it to consoleMessages
-			if (!jsonData.type || !jsonData.value) return;
-			consoleMessages.update((messages) => [
-				...messages,
-				{
-					time: new Date().toLocaleTimeString(),
-					name: jsonData.type,
-					message: jsonData.value
-				}
-			]);
+			let bluetoothEnabled = await BleClient.isEnabled();
+			if (!bluetoothEnabled) {
+				alert('Bluetooth is disabled');
+				return;
+			}
+			getBLEDevices(5000);
+			$modal = true;
 		} catch (error) {
-			console.log('Error parsing JSON:', error);
+			alert('Error adding device:', error.message);
 		}
 	}
+
+	let getBLEDevices = async () => {};
+	let allBLEDevices = [];
+	let scanningTimeout;
+	onMount(async () => {
+		try {
+			getBLEDevices = async (timeout) => {
+				allBLEDevices = [];
+				scanningTimeout = setTimeout(async () => {
+					await BleClient.stopLEScan();
+					return;
+				}, timeout);
+				try {
+					await BleClient.requestLEScan({}, (result) => {
+						// if the result.device.deviceId is already in the allBLEDevices array, update it
+						if (allBLEDevices.some((d) => d.id === result.device.deviceId)) {
+							allBLEDevices = allBLEDevices.map((d) =>
+								d.id === result.device.deviceId
+									? {
+											...d,
+											rssi: result.rssi,
+											lastSeen: new Date().toLocaleTimeString()
+										}
+									: d
+							);
+						} else {
+							allBLEDevices.push({
+								name: result.localName,
+								id: result.device.deviceId,
+								rssi: result.rssi,
+								lastSeen: new Date().toLocaleTimeString()
+							});
+						}
+						// filter out devices with no name
+						allBLEDevices = allBLEDevices.sort((a, b) => b.rssi - a.rssi).filter((d) => d.name);
+					});
+				} catch (error) {
+					alert('Error initializing BLE client');
+					console.error(error);
+				}
+			};
+
+			try {
+				await BleClient.initialize();
+			} catch (error) {
+				alert('Error initializing BLE client');
+				console.error(error);
+			}
+		} catch (error) {
+			console.error(error);
+		}
+	});
+	let bluetoothDevices = [
+		{
+			name: 'Device 1',
+			id: '1234'
+		}
+	];
 </script>
 
 <svelte:head>
@@ -98,10 +143,76 @@
 </svelte:head>
 <svelte:window on:scroll={() => (scrollY = window.scrollY)} />
 <main>
+	<DeviceModal
+		title="Bluetooth"
+		position="top"
+		opened={$modal}
+		on:close={() => {
+			// stop scanning
+			BleClient.stopLEScan();
+			$modal = false;
+		}}
+		on:reload={() => {
+			getBLEDevices(5000);
+		}}
+		loadingTime={5000}
+	>
+		<div class="bluetoothDevicesContainer">
+			{#each allBLEDevices as device}
+				<button
+					class="unstyledButton"
+					on:click={async () => {
+						device.loading = true;
+						let connection = await connectDevice(device.id);
+						device.loading = false;
+						if (!connection) return;
+
+						// check if the id already exists
+						if ($devices.some((d) => d.id === device.id)) {
+							$modal = false;
+							$devices = $devices.map((d) =>
+								d.id === device.id ? { ...d, status: 'connected' } : d
+							);
+							return;
+						}
+
+						$devices = [
+							...$devices,
+							{
+								...device,
+								name: device.name,
+								id: device.id,
+								status: 'connected',
+								loading: false
+							}
+						];
+						$modal = false;
+						device.loading = false;
+						goto(`/device?id=${encodeURIComponent(device.id)}`);
+					}}
+				>
+					<div class="bluetoothDeviceContainer">
+						<div class="bluetoothDevice">
+							<div class="bluetoothIcon">
+								<Fa icon={faBluetoothB} size="1.5x" />
+							</div>
+							<div class="bluetoothDeviceDetails">
+								<h3>{device.name}</h3>
+								<p>{device.id}</p>
+							</div>
+						</div>
+						{#if device.loading}
+							<Loader color="gray" size={25} />
+						{/if}
+					</div>
+				</button>
+			{/each}
+		</div>
+	</DeviceModal>
 	<div class="devicesContainer">
 		{#if $devices.length > 0}
-			<Affix position={{ bottom: 20, right: 20 }}
-				><Button
+			<div class="affix">
+				<Button
 					ripple
 					override={{
 						overflow: 'hidden'
@@ -124,88 +235,103 @@
 						Add device</Flex
 					></Button
 				>
-			</Affix>
+			</div>
 			<div class="deviceGrid">
 				{#each $devices as device}
-					<UnstyledButton
+					<button
+						class="unstyledButton"
+						use:longpress
+						on:longpress={async () => {
+							device.longpress = true;
+							await Haptics.impact({ style: ImpactStyle.Heavy });
+							// wait 10 seconds
+							setTimeout(() => {
+								device.longpress = false;
+							}, 5000);
+						}}
 						override={{
 							height: '100%'
 						}}
 						on:click={async () => {
+							if (device.longpress) return;
+							if (device.loading) return;
 							device.loading = true;
-							try {
-								const server = await device.self.gatt.connect();
-								const service = await server.getPrimaryService(serviceUuid);
-								const characteristic = await service.getCharacteristic(characteristicUuid);
-								await characteristic.startNotifications();
-								await characteristic.writeValue(new Uint8Array([0x1]));
-								characteristic.addEventListener('characteristicvaluechanged', (event) =>
-									handleCharacteristicValueChanged(event, device)
-								);
-								// wait for device.data to be set
-								console.log('Notifications have been started.');
-							} catch (error) {
-								console.error(error);
-								// get reason
-								console.log(error.reason);
-								device.loading = false;
-								device.status = 'Failed to connect';
-								return;
-							}
+							let connection = await connectDevice(device.id);
 
 							device.loading = false;
+							if (!connection) return;
+
 							device.status = 'connected';
-							goto(`/device/${encodeURIComponent(device.id)}`);
+							await new Promise((resolve) => setTimeout(resolve, 100));
+							if (connection) await syncDevice(device.id);
+							goto(`/device?id=${encodeURIComponent(device.id)}`);
 						}}
 					>
-						<div class="deviceContainer" class:deviceHover={device.hover}>
+						<div class="deviceContainer" class:noHover={device.longpress}>
 							{#if device.loading}
-								<Flex
-									override={{
-										justifyContent: 'space-between',
-										alignItems: 'center',
-										height: '100%',
-										width: '100%',
-										'& > *': {
-											margin: `0 auto`
-										}
-									}}
-								>
-									<Loader color="gray" size={36} />
-								</Flex>
+								<div class="loader" transition:fly={{ y: -50, duration: 100 }}>
+									<Loader color="gray" size={35} />
+								</div>
+							{:else if device.longpress}
+								<div class="quickButtons" transition:fly={{ y: -50, duration: 100 }}>
+									{#each quickButtons as button}
+										<Button
+											class="unstyledButton"
+											on:click={async () => {
+												try {
+													setTimeout(() => {
+														device.longpress = false;
+													}, 100);
+													await button.action(device);
+													device.longpress = false;
+												} catch (e) {
+													alert(e);
+												}
+											}}
+											override={{
+												padding: '5px 10px'
+											}}
+											variant="subtle"
+											color={button.color}
+										>
+											<Fa icon={button.icon} size="1.50x" color={button.color} />
+										</Button>
+									{/each}
+								</div>
 							{:else}
-								<Flex
-									override={{
-										justifyContent: 'space-between',
-										alignItems: 'center',
-										height: '100%'
-									}}
-								>
+								<div style="height: 100%" transition:fly={{ y: 50, duration: 100 }}>
 									<Flex
 										override={{
+											justifyContent: 'space-between',
 											alignItems: 'center',
-											gap: '10px'
+											height: '100%'
 										}}
 									>
-										<Fa icon={faPersonBiking} size="1.5x" />
-										<div>
-											{device.name}
-											<Text color={statusFormatter(device.status).color}>
-												{statusFormatter(device.status).status}
-											</Text>
-										</div>
+										<Flex
+											override={{
+												alignItems: 'center',
+												gap: '10px'
+											}}
+										>
+											<Fa icon={faPersonBiking} size="1.5x" />
+											<div>
+												{device.name}
+												<Text color={statusFormatter(device.status).color}>
+													{statusFormatter(device.status).status}
+												</Text>
+											</div>
+										</Flex>
+										<Fa icon={faChevronRight} size="1.5x" />
 									</Flex>
-									<Fa icon={faChevronRight} size="1.5x" />
-								</Flex>
+								</div>
 							{/if}
 						</div>
-					</UnstyledButton>
+					</button>
 				{/each}
 			</div>
 		{:else}
 			<UnstyledButton
 				on:click={() => {
-					console.log('add device');
 					addDevice();
 				}}
 			>
@@ -234,10 +360,69 @@
 </main>
 
 <style>
+	.bluetoothDevicesContainer {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+		width: 100%;
+		grid-gap: 10px;
+	}
+
+	.bluetoothDeviceContainer:hover {
+		transition: transform 0.1s;
+	}
+	.bluetoothDeviceContainer:active {
+		background-color: rgb(50, 50, 50);
+		transform: scale(0.95);
+	}
+	.bluetoothDeviceContainer {
+		background-color: rgb(40, 40, 40);
+		display: grid;
+		grid-template-columns: 1fr auto;
+		/* center */
+		align-items: center;
+		justify-content: center;
+		padding: 20px;
+
+		border-radius: 15px;
+	}
+	.bluetoothDevice {
+		height: 30px;
+		display: flex;
+		color: white;
+	}
+	.bluetoothIcon {
+		width: 30px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.bluetoothDeviceDetails {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		margin-left: 10px;
+	}
+	.bluetoothDeviceDetails > * {
+		margin: 0px 0;
+	}
+	.bluetoothDeviceDetails p {
+		font-size: 0.8rem;
+		color: #c4dbff;
+	}
+	.plusIcon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
 	main {
 		max-width: 1100px;
 		width: 100%;
 		margin: 0 auto;
+	}
+	.affix {
+		position: fixed;
+		bottom: 80px;
+		right: 20px;
 	}
 	.deviceGrid {
 		display: grid;
@@ -253,15 +438,29 @@
 		border-radius: 15px;
 		padding: 20px;
 		height: 40px;
+		user-select: none;
+		overflow: hidden;
+		display: grid;
+		grid-template-columns: 1fr;
+		grid-template-rows: 1fr;
+	}
+	.deviceContainer > * {
+		/* set all to row 1 column 1 */
+		grid-row: 1;
+		grid-column: 1;
 	}
 
-	.deviceContainer:hover {
+	.deviceContainer {
 		transition: transform 0.2s;
 	}
 
 	.deviceContainer:active {
 		background-color: rgb(50, 50, 50);
 		transform: scale(0.95);
+	}
+	.deviceContainer.noHover:active {
+		background-color: rgb(40, 40, 40);
+		transform: scale(1);
 	}
 
 	.devicesContainer {
@@ -283,5 +482,27 @@
 	}
 	.noDevices > * {
 		margin: 10px 0;
+	}
+	.quickButtons {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		height: 100%;
+	}
+	button.unstyledButton {
+		background-color: transparent;
+		border: none;
+		padding: 0;
+		color: white;
+		/* remove the font size */
+		font-size: inherit;
+		/* remove the align to center */
+		text-align: left;
+	}
+	.loader {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		height: 100%;
 	}
 </style>

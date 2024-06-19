@@ -7,6 +7,16 @@ const config: CapacitorConfig = {
   "server": {
 	"url": "http://192.168.178.109:5173",
 	"cleartext": true
+  },
+  "plugins": {
+    "BluetoothLe": {
+      "displayStrings": {
+        "scanning": "Am Scannen...",
+        "cancel": "Abbrechen",
+        "availableDevices": "Verfügbare Geräte",
+        "noDeviceFound": "Kein Gerät gefunden"
+      }
+    }
   }
 };
 
