@@ -150,7 +150,10 @@ const devices = writable({
 	...defaultFunctions
 });
 const consoleMessages = writable([]);
-const modal = writable(false);
+const modal = writable({
+	bluetooth: false,
+	wifi: false
+});
 let oldDevices = {};
 
 devices.subscribe((value) => {

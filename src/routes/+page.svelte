@@ -83,7 +83,7 @@
 					return;
 				}
 				getBLEDevices(5000);
-				$modal = true;
+				$modal.bluetooth = true;
 			}
 		} catch (error) {
 			alert('Error adding device:', error.message);
@@ -152,9 +152,6 @@
 			return protocolModal.value;
 		}
 	};
-	let wifiModal = {
-		opened: false
-	};
 	let protocols = [
 		{
 			name: 'Bluetooth',
@@ -199,9 +196,8 @@
 
 		<div class="Description"></div>
 	</Modal>
-	<Modal opened={wifiModal.opened} title="WiFi" position="top">
+	<Modal opened={$modal.wifi} title="WiFi" position="top">
 		<TextInput label="IP Adress" />
-		<!-- make an slot with button to go -->
 		<div slot="leftButton">
 			<Button
 				override={{
@@ -213,11 +209,11 @@
 	<DeviceModal
 		title="Bluetooth"
 		position="top"
-		opened={$modal}
+		opened={$modal.bluetooth}
 		on:close={() => {
 			// stop scanning
 			BleClient.stopLEScan();
-			$modal = false;
+			$modal.bluetooth = false;
 		}}
 		on:reload={() => {
 			getBLEDevices(5000);
@@ -239,7 +235,7 @@
 								},
 								'bluetooth'
 							);
-							$modal = false;
+							$modal.bluetooth = false;
 							device.loading = false;
 							// goto(`/device?id=${encodeURIComponent(device.id)}`);
 						} catch (error) {
