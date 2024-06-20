@@ -4,12 +4,12 @@ let consoleMessages;
 let devices;
 let accumulatedData = '';
 
-consoleMessagesStore.subscribe((value) => {
-	consoleMessages = value;
-});
-devicesStore.subscribe((value) => {
-	devices = value;
-});
+// consoleMessagesStore.subscribe((value) => {
+// 	consoleMessages = value;
+// });
+// devicesStore.subscribe((value) => {
+// 	devices = value;
+// });
 
 export const serviceUuid = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
 export const characteristicUuid = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
@@ -99,7 +99,7 @@ export function processData(data, deviceId) {
 
 		// add it to consoleMessages
 		if (!jsonData.type || !jsonData.value) return;
-		consoleMessages.update((messages) => [
+		consoleMessagesStore.update((messages) => [
 			...messages,
 			{
 				time: new Date().toLocaleTimeString(),
@@ -108,7 +108,7 @@ export function processData(data, deviceId) {
 			}
 		]);
 	} catch (error) {
-		alert('Error parsing JSON:', error);
+		alert(error.message);
 	}
 }
 
@@ -116,9 +116,6 @@ export async function connectDevice(deviceId, silent = false) {
 	try {
 		await BleClient.connect(deviceId, async () => {
 			// handle disconnect
-			devicesStore.set(
-				devices.map((d) => (d.id === deviceId ? { ...d, status: 'Connection Lost' } : d))
-			);
 			await BleClient.stopNotifications(deviceId, serviceUuid, characteristicUuid);
 		});
 		await BleClient.startNotifications(deviceId, serviceUuid, characteristicUuid, (event) => {
@@ -161,5 +158,18 @@ export async function syncDevice(deviceId) {
 export async function factoryReset(deviceId) {
 	// send 0xf1 0x03 to reset the device
 	BleClient.write(deviceId, serviceUuid, characteristicUuid, new Uint8Array([0xf1, 0x03]));
+	return;
+}
+
+export async function readController(deviceId, hexCode) {
+	await BleClient.write(deviceId, serviceUuid, characteristicUuid, new Uint8Array([0xf3, hexCode]));
+	let device = devices.find((d) => d.id === deviceId);
+	// make device.settings empty inside the store
+	devicesStore.set(devices.map((d) => (d.id === deviceId ? { ...d, settings: {} } : d)));
+	while (!device.settings) {
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		device = devices.find((d) => d.id === deviceId);
+	}
+	alert(JSON.stringify(device.settings));
 	return;
 }

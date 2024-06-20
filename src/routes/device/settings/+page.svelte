@@ -37,11 +37,11 @@
 	];
 	onMount(async () => {
 		id = $page.url.searchParams.get('id');
-		device = $devices.find((device) => device.id === id);
+		device = $devices.list.find((device) => device.id === id);
 		devices.subscribe((value) => {
-			device = value.find((device) => device.id === id);
+			device = value.list.find((device) => device.id === id);
 		});
-		await syncDevice(id);
+		await device[device.connectedTo]?.sync();
 
 		settingsItems = [
 			{
@@ -97,8 +97,8 @@
 						try {
 							// set self button to loading
 							settingsItems[4].loading = true;
-							await rebootDevice(device.id);
-							syncDevice(device.id);
+							await device[device.connectedTo].reboot();
+							await device[device.connectedTo].sync();
 							settingsItems[4].loading = false;
 						} catch (e) {
 							alert(e);
@@ -123,8 +123,8 @@
 							});
 							settingsItems[5].loading = false;
 							settingsItems[4].loading = true;
-							await rebootDevice(device.id);
-							await syncDevice(device.id);
+							await device[device.connectedTo].reboot();
+							await device[device.connectedTo].sync();
 						} catch (e) {
 							alert(e);
 						}

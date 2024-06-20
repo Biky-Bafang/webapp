@@ -1,11 +1,20 @@
 <script>
+	import { readController } from '$lib/general';
 	import { Button } from '@svelteuidev/core';
 	export let title;
+	export let hex;
+	export let deviceId;
 </script>
 
 <main>
 	<div class="controllerContainer">
-		<Button variant="outline" color="green">Read</Button>
+		<Button
+			variant="outline"
+			color="green"
+			on:click={() => {
+				readController(deviceId, hex);
+			}}>Read</Button
+		>
 		<h3 class="name">
 			{title || ''}
 		</h3>

@@ -11,8 +11,6 @@
 	import { devices } from '$lib/stores';
 	import { Storage } from '@capacitor/storage';
 
-	export let data;
-
 	let icons = [
 		{
 			icon: faCode,
@@ -105,9 +103,6 @@
 		});
 	}
 
-	if (data.devices) {
-		devices.set(data.devices);
-	}
 	async function saveDevices(value) {
 		await Storage.set({
 			key: 'devices',
@@ -118,15 +113,17 @@
 	// Load devices from Capacitor Storage
 	async function loadDevices() {
 		const { value } = await Storage.get({ key: 'devices' });
-		let valueJson = JSON.parse(value);
-		// filter value and only keep name and id
-		valueJson = valueJson.map((device) => {
+		let tempDevices = $devices;
+		delete tempDevices.list;
+		let valueJson = { ...JSON.parse(value), ...$devices };
+		valueJson.list = valueJson.list.map((device) => {
 			return {
-				name: device.name,
 				id: device.id,
-				status: '‎ '
+				name: device.name,
+				status: '\u200b'
 			};
 		});
+		// remove the status from the list devies
 		if (value) {
 			devices.set(valueJson);
 		}

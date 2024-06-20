@@ -46,9 +46,9 @@
 			}}
 		/>
 		<NativeSelect
-			data={[...$devices.map((device) => device.name), '']}
+			data={[...$devices.list.map((device) => device.name), '']}
 			on:change={(e) => {
-				selectedDevice = $devices.find((device) => device.name === e.target.value);
+				selectedDevice = $devices.list.find((device) => device.name === e.target.value);
 			}}
 		/>
 	</Flex>
@@ -84,7 +84,7 @@
 			}}
 			data={['Serial1', 'Serial2']}
 			on:change={(e) => {
-				selectedDevice = $devices.find((device) => device.name === e.target.value);
+				selectedDevice = $devices.list.find((device) => device.name === e.target.value);
 			}}
 		/>
 		<Button color="gray" variant="outline">Send</Button>

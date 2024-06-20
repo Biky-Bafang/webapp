@@ -1,15 +1,25 @@
 <script>
 	import { goto, onNavigate } from '$app/navigation';
-	import { devices, consoleMessages, modal } from '$lib/stores';
+	import { devices, modal } from '$lib/stores';
 	import {
 		faChevronRight,
 		faGear,
 		faLinkSlash,
 		faPersonBiking,
 		faPlus,
-		faTrash
+		faTrash,
+		faWifi
 	} from '@fortawesome/free-solid-svg-icons';
-	import { Affix, Button, Flex, Text, UnstyledButton, Loader, Card } from '@svelteuidev/core';
+	import {
+		Affix,
+		Button,
+		Flex,
+		Text,
+		UnstyledButton,
+		Loader,
+		Card,
+		TextInput
+	} from '@svelteuidev/core';
 	import { BleClient, numberToUUID } from '@capacitor-community/bluetooth-le';
 	import { Haptics, ImpactStyle } from '@capacitor/haptics';
 	import Fa from 'svelte-fa';
@@ -20,8 +30,7 @@
 	import { connectDevice, longpress, syncDevice } from '$lib/general';
 	import Header from '../components/Header.svelte';
 	import { dev } from '$app/environment';
-	const serviceUuid = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
-	const characteristicUuid = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+	import Modal from '../components/Modal.svelte';
 	let scrollY = 0;
 	const statusFormatter = (status) => {
 		switch (status) {
@@ -42,15 +51,16 @@
 			type: 'delete',
 			icon: faTrash,
 			color: 'red',
-			action: (device) => {
-				devices.set($devices.filter((d) => d.id !== device.id));
+			action: async (device) => {
+				await device.delete();
+				return;
 			}
 		},
 		{
 			type: 'disconnect',
 			icon: faLinkSlash,
 			action: async (device) => {
-				await BleClient.disconnect(device.id);
+				await device.disconnect();
 				return;
 			}
 		},
@@ -65,14 +75,16 @@
 	async function addDevice() {
 		try {
 			await Haptics.impact({ style: ImpactStyle.Light });
-
-			let bluetoothEnabled = await BleClient.isEnabled();
-			if (!bluetoothEnabled) {
-				alert('Bluetooth is disabled');
-				return;
+			let type = await protocolModal.request();
+			if (type === 'bluetooth') {
+				let bluetoothEnabled = await BleClient.isEnabled();
+				if (!bluetoothEnabled) {
+					alert('Bluetooth is disabled');
+					return;
+				}
+				getBLEDevices(5000);
+				$modal = true;
 			}
-			getBLEDevices(5000);
-			$modal = true;
 		} catch (error) {
 			alert('Error adding device:', error.message);
 		}
@@ -129,10 +141,30 @@
 			console.error(error);
 		}
 	});
-	let bluetoothDevices = [
+	let protocolModal = {
+		opened: false,
+		async request() {
+			protocolModal.value = null;
+			protocolModal.opened = true;
+			while (protocolModal.opened) {
+				await new Promise((resolve) => setTimeout(resolve, 100));
+			}
+			return protocolModal.value;
+		}
+	};
+	let wifiModal = {
+		opened: false
+	};
+	let protocols = [
 		{
-			name: 'Device 1',
-			id: '1234'
+			name: 'Bluetooth',
+			id: 'bluetooth',
+			icon: faBluetoothB
+		},
+		{
+			name: 'Wifi',
+			id: 'wifi',
+			icon: faWifi
 		}
 	];
 </script>
@@ -143,6 +175,41 @@
 </svelte:head>
 <svelte:window on:scroll={() => (scrollY = window.scrollY)} />
 <main>
+	<Modal
+		opened={protocolModal.opened}
+		title="Protocol"
+		position="top"
+		on:close={() => (protocolModal.opened = false)}
+	>
+		<div class="protocolContainer">
+			{#each protocols as protocol}
+				<UnstyledButton
+					on:click={() => {
+						protocolModal.opened = false;
+						protocolModal.value = protocol.id;
+					}}
+				>
+					<div class="protocol">
+						<Fa icon={protocol.icon} size="1.5x" />
+						<h3>{protocol.name}</h3>
+					</div>
+				</UnstyledButton>
+			{/each}
+		</div>
+
+		<div class="Description"></div>
+	</Modal>
+	<Modal opened={wifiModal.opened} title="WiFi" position="top">
+		<TextInput label="IP Adress" />
+		<!-- make an slot with button to go -->
+		<div slot="leftButton">
+			<Button
+				override={{
+					width: '200px'
+				}}>Connect</Button
+			>
+		</div>
+	</Modal>
 	<DeviceModal
 		title="Bluetooth"
 		position="top"
@@ -162,33 +229,22 @@
 				<button
 					class="unstyledButton"
 					on:click={async () => {
-						device.loading = true;
-						let connection = await connectDevice(device.id);
-						device.loading = false;
-						if (!connection) return;
-
-						// check if the id already exists
-						if ($devices.some((d) => d.id === device.id)) {
-							$modal = false;
-							$devices = $devices.map((d) =>
-								d.id === device.id ? { ...d, status: 'connected' } : d
+						try {
+							device.loading = true;
+							await $devices.add(
+								{
+									id: device.id,
+									name: device.name,
+									status: 'connected'
+								},
+								'bluetooth'
 							);
-							return;
+							$modal = false;
+							device.loading = false;
+							// goto(`/device?id=${encodeURIComponent(device.id)}`);
+						} catch (error) {
+							alert(error.message);
 						}
-
-						$devices = [
-							...$devices,
-							{
-								...device,
-								name: device.name,
-								id: device.id,
-								status: 'connected',
-								loading: false
-							}
-						];
-						$modal = false;
-						device.loading = false;
-						goto(`/device?id=${encodeURIComponent(device.id)}`);
 					}}
 				>
 					<div class="bluetoothDeviceContainer">
@@ -210,7 +266,7 @@
 		</div>
 	</DeviceModal>
 	<div class="devicesContainer">
-		{#if $devices.length > 0}
+		{#if $devices.list?.length > 0}
 			<div class="affix">
 				<Button
 					ripple
@@ -237,7 +293,7 @@
 				>
 			</div>
 			<div class="deviceGrid">
-				{#each $devices as device}
+				{#each $devices?.list as device}
 					<button
 						class="unstyledButton"
 						use:longpress
@@ -253,18 +309,24 @@
 							height: '100%'
 						}}
 						on:click={async () => {
-							if (device.longpress) return;
-							if (device.loading) return;
-							device.loading = true;
-							let connection = await connectDevice(device.id);
+							try {
+								if (device.longpress) return;
+								if (device.loading) return;
+								let type = device.connectedTo;
+								if (device.status !== 'connected' || !device.connectedTo) {
+									type = await protocolModal.request();
+									if (!type) return;
+								}
 
-							device.loading = false;
-							if (!connection) return;
-
-							device.status = 'connected';
-							await new Promise((resolve) => setTimeout(resolve, 100));
-							if (connection) await syncDevice(device.id);
-							goto(`/device?id=${encodeURIComponent(device.id)}`);
+								let connection = await device[type]?.connect();
+								if (!connection) return;
+								await new Promise((resolve) => setTimeout(resolve, 100));
+								if (connection) await device[type].sync();
+								goto(`/device?id=${encodeURIComponent(device.id)}`);
+							} catch (error) {
+								device.loading = false;
+								alert(error.message);
+							}
 						}}
 					>
 						<div class="deviceContainer" class:noHover={device.longpress}>
@@ -360,6 +422,32 @@
 </main>
 
 <style>
+	.protocolContainer {
+		display: flex;
+		justify-content: space-between;
+		grid-gap: 10px;
+		padding: 20px;
+		/* align to bottom */
+		align-items: flex-end;
+	}
+	.protocol {
+		background-color: rgb(40, 40, 40);
+		border-radius: 15px;
+		padding: 20px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		/* make them all the same width and height */
+		width: 80px;
+		height: 50px;
+	}
+	.protocol h3 {
+		margin: 5px;
+	}
+	.protocol:hover {
+		background-color: rgb(50, 50, 50);
+		transition: transform 0.1s;
+	}
 	.bluetoothDevicesContainer {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));

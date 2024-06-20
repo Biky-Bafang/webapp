@@ -16,7 +16,7 @@
 	import { browser } from '$app/environment';
 	import Fa from 'svelte-fa';
 	import { BleClient } from '@capacitor-community/bluetooth-le';
-	import { characteristicUuid, serviceUuid, syncDevice } from '$lib/general';
+	import { characteristicUuid, serviceUuid } from '$lib/general';
 	let id;
 	let name;
 	let value;
@@ -36,9 +36,9 @@
 		type = $page.url.searchParams.get('type') || 'text';
 		options = $page.url.searchParams.get('options')?.split(',') || [];
 
-		device = $devices.find((device) => device.id === id);
+		device = $devices.list.find((device) => device.id === id);
 		devices.subscribe((value) => {
-			device = value.find((device) => device.id === id);
+			device = value.list.find((device) => device.id === id);
 		});
 		// make inputText focus
 		await new Promise((resolve) => {
@@ -65,34 +65,38 @@
 		color="gray"
 		variant="subtle"
 		on:click={async () => {
-			loading = true;
-			// check if its a select or input
-			if (options.length > 0) {
-				// send it as a hex value. So first convert to hex as int
-				value = parseInt(value);
-				await BleClient.write(
-					device.id,
-					serviceUuid,
-					characteristicUuid,
-					new Uint8Array([0xf2, hex, value])
-				);
-			} else {
-				await BleClient.write(
-					device.id,
-					serviceUuid,
-					characteristicUuid,
-					// send value as ascii hex so 2 hex characters per character
-					new Uint8Array([0xf2, hex, ...value.split('').map((char) => char.charCodeAt(0))])
-				);
+			try {
+				loading = true;
+				// check if its a select or input
+				if (options.length > 0) {
+					// send it as a hex value. So first convert to hex as int
+					value = parseInt(value);
+					await BleClient.write(
+						device.id,
+						serviceUuid,
+						characteristicUuid,
+						new Uint8Array([0xf2, hex, value])
+					);
+				} else {
+					await BleClient.write(
+						device.id,
+						serviceUuid,
+						characteristicUuid,
+						// send value as ascii hex so 2 hex characters per character
+						new Uint8Array([0xf2, hex, ...value.split('').map((char) => char.charCodeAt(0))])
+					);
+				}
+				await device[device.connectedTo].sync();
+				await new Promise((resolve) => {
+					setTimeout(() => {
+						resolve();
+					}, 200);
+				});
+				loading = false;
+				window.history.back();
+			} catch (e) {
+				alert(e.message);
 			}
-			await syncDevice(device.id);
-			await new Promise((resolve) => {
-				setTimeout(() => {
-					resolve();
-				}, 200);
-			});
-			loading = false;
-			window.history.back();
 		}}
 	>
 		{#if loading}

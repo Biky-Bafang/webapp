@@ -1,0 +1,3 @@
+import{M as f,N as b}from"./scheduler.fYnF1vvb.js";const _=typeof window<"u"?window:typeof globalThis<"u"?globalThis:global;function w(o){const t=o-1;return t*t*t+1}function h(o,{delay:t=0,duration:n=400,easing:s=b}={}){const a=+getComputedStyle(o).opacity;return{delay:t,duration:n,easing:s,css:e=>`opacity: ${e*a}`}}function C(o,{delay:t=0,duration:n=400,easing:s=w,x:a=0,y:e=0,opacity:l=0}={}){const c=getComputedStyle(o),i=+c.opacity,u=c.transform==="none"?"":c.transform,y=i*(1-l),[p,d]=f(a),[g,m]=f(e);return{delay:t,duration:n,easing:s,css:(r,$)=>`
+			transform: ${u} translate(${(1-r)*p}${d}, ${(1-r)*g}${m});
+			opacity: ${i-y*$}`}}export{h as a,w as c,C as f,_ as g};
