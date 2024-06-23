@@ -8,7 +8,7 @@
 	let hexInput = ''; // should be 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 may be longer may be shorter.
 	let delayInput = 10;
 	let serialDelayInput = 2;
-	let selectedDevice;
+	let selectedDevice = {};
 </script>
 
 <main>
@@ -48,7 +48,14 @@
 		<NativeSelect
 			data={[...$devices.list.map((device) => device.name), '']}
 			on:change={(e) => {
-				selectedDevice = $devices.list.find((device) => device.name === e.target.value);
+				try {
+					selectedDevice = {
+						...selectedDevice,
+						...$devices.list.find((device) => device.name === e.target.value)
+					};
+				} catch (e) {
+					alert(e.message);
+				}
 			}}
 		/>
 	</Flex>
@@ -69,8 +76,9 @@
 					selectedDevice.id,
 					serviceUuid,
 					characteristicUuid,
-					new Uint8Array([selectedDevice.name === 'Serial1' ? 0x02 : 0x03, ...hexArray])
+					new Uint8Array([0xf4, selectedDevice.serial === 'Serial1' ? 0x01 : 0x02, ...hexArray])
 				);
+				// alert new Uint8Array([0xf4, selectedDevice.name === 'Serial1' ? 0x01 : 0x02, ...hexArray])
 			} catch (e) {
 				alert(e);
 			}
@@ -83,13 +91,12 @@
 				minWidth: '90px'
 			}}
 			data={['Serial1', 'Serial2']}
-			on:change={(e) => {
-				selectedDevice = $devices.list.find((device) => device.name === e.target.value);
-			}}
+			bind:value={selectedDevice.serial}
 		/>
 		<Button color="gray" variant="outline">Send</Button>
 	</form>
 </main>
+{selectedDevice.serial}
 
 <style>
 	main {

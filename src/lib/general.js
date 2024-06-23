@@ -1,16 +1,9 @@
 import { BleClient } from '@capacitor-community/bluetooth-le';
 import { consoleMessages as consoleMessagesStore, devices as devicesStore } from './stores';
+import { onMount } from 'svelte';
 let consoleMessages;
 let devices;
 let accumulatedData = '';
-
-// consoleMessagesStore.subscribe((value) => {
-// 	consoleMessages = value;
-// });
-// devicesStore.subscribe((value) => {
-// 	devices = value;
-// });
-
 export const serviceUuid = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
 export const characteristicUuid = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
 export function longpress(node, threshold = 500, moveThreshold = 10) {
@@ -162,14 +155,27 @@ export async function factoryReset(deviceId) {
 }
 
 export async function readController(deviceId, hexCode) {
-	await BleClient.write(deviceId, serviceUuid, characteristicUuid, new Uint8Array([0xf3, hexCode]));
-	let device = devices.find((d) => d.id === deviceId);
-	// make device.settings empty inside the store
-	devicesStore.set(devices.map((d) => (d.id === deviceId ? { ...d, settings: {} } : d)));
-	while (!device.settings) {
-		await new Promise((resolve) => setTimeout(resolve, 100));
-		device = devices.find((d) => d.id === deviceId);
+	try {
+		consoleMessagesStore.subscribe((value) => (consoleMessages = value));
+		devicesStore.subscribe((value) => (devices = value));
+		// set oldConsoleMessages to consoleMessages where the .value begins with the 0xhexCode
+		let oldConsoleMessages = consoleMessages.length;
+		let newConsoleMessages = oldConsoleMessages;
+		await BleClient.write(
+			deviceId,
+			serviceUuid,
+			characteristicUuid,
+			new Uint8Array([0xf3, hexCode])
+		);
+		while (oldConsoleMessages === newConsoleMessages) {
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			// set newConsoleMessages to consoleMessages where the .value begins with the 0xhexCode
+			newConsoleMessages = consoleMessages.length;
+		}
+		let filteredMessages = consoleMessages;
+		// alert the last message
+		return filteredMessages[filteredMessages.length - 1];
+	} catch (error) {
+		alert('error: ' + error.message);
 	}
-	alert(JSON.stringify(device.settings));
-	return;
 }

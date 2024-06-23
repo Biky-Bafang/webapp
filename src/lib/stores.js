@@ -144,6 +144,22 @@ const devices = writable({
 				list: oldDevices.list.map((d) => (d.id === deviceId ? device : d))
 			});
 			return;
+		},
+		async readController(deviceId, hexCode) {
+			await BleClient.write(
+				deviceId,
+				serviceUuid,
+				characteristicUuid,
+				new Uint8Array([0xf3, hexCode])
+			);
+			let device = oldDevices.list.find((d) => d.id === deviceId);
+			while (!device.settings) {
+				await new Promise((resolve) => setTimeout(resolve, 100));
+				device = oldDevices.list.find((d) => d.id === deviceId);
+			}
+			alert(JSON.stringify(device));
+
+			return device;
 		}
 	},
 	wifi: {},

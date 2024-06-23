@@ -27,23 +27,92 @@
 			settings: [
 				{
 					label: 'Low Battery Protection',
-					value: '40V'
+					value: '--V',
+					prefix: '',
+					suffix: 'V',
+					byteIndex: 2
 				},
 				{
 					label: 'Current Limit',
-					value: '24A'
+					value: '--A',
+					prefix: '',
+					suffix: 'A',
+					byteIndex: 3
 				},
 				{
-					label: 'Speed Limit Type',
-					value: 'External, Wheel Meter'
-				},
-				{
-					label: 'Speed Meter Signals',
-					value: '1'
+					label: 'Speed Meter Type',
+					value: '--',
+					byteIndex: 25,
+					// make an switch case from with hex value
+					options(byte) {
+						switch (byte) {
+							case 0x00:
+								return 'External';
+							case 0x01:
+								return 'Internal';
+							case 0x10:
+								return 'Motor Phase';
+							default:
+								return 'Unkown??';
+						}
+					}
 				},
 				{
 					label: 'Wheel Diameter',
-					value: '26 inch'
+					value: '-- inch',
+					byteIndex: 24,
+					options(byte) {
+						switch (byte) {
+							case 0x1f:
+							case 0x20:
+								return '16 inch';
+							case 0x21:
+							case 0x22:
+								return '17 inch';
+							case 0x23:
+							case 0x24:
+								return '18 inch';
+							case 0x25:
+							case 0x26:
+								return '19 inch';
+							case 0x27:
+							case 0x28:
+								return '20 inch';
+							case 0x29:
+							case 0x2a:
+								return '21 inch';
+							case 0x2b:
+							case 0x2c:
+								return '22 inch';
+							case 0x2d:
+							case 0x2e:
+								return '23 inch';
+							case 0x2f:
+							case 0x30:
+								return '24 inch';
+							case 0x31:
+							case 0x32:
+								return '25 inch';
+							case 0x33:
+							case 0x34:
+								return '26 inch';
+							case 0x35:
+							case 0x36:
+								return '27 inch';
+							case 0x37:
+								return '700C inch'; // Note: "700C" is a standard wheel size, not typically expressed in inches directly.
+							case 0x38:
+								return '28 inch';
+							case 0x39:
+							case 0x3a:
+								return '29 inch';
+							case 0x3b:
+							case 0x3c:
+								return '30 inch';
+							default:
+								return 'Unknown??';
+						}
+					}
 				}
 			],
 			bottomComponent: Control
@@ -203,6 +272,30 @@
 				title={Object.keys(deviceTabs)[selectedIndex]}
 				deviceId={id}
 				hex={deviceTabs[Object.keys(deviceTabs)[selectedIndex]].hex}
+				on:read={(e) => {
+					let response = e.detail;
+					// response.message is a Uint8Array but in string, but it has 0x in front of each byte
+					// so we need to remove it. So first we convert the string to an array of strings. And then we convert each byte to an integer
+					response.message = response.message
+						.split(' ')
+						.splice(1)
+						.map((byte) => {
+							// then we remove the 0x from each byte
+							return byte.replace('0x', '');
+						});
+					// set the settings with the byteIndex so byte 2 goes to the first setting
+					deviceTabs[Object.keys(deviceTabs)[selectedIndex]].settings.forEach((setting, i) => {
+						if (!setting.byteIndex) return;
+						if (setting.options) {
+							setting.value = setting.options(parseInt(response.message[setting.byteIndex], 16));
+							return;
+						} else {
+							setting.value =
+								setting.prefix + parseInt(response.message[setting.byteIndex], 16) + setting.suffix;
+						}
+					});
+					deviceTabs = deviceTabs;
+				}}
 			/>
 		</div>
 	{/if}
