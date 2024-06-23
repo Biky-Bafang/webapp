@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
 	appName: 'Biky',
 	webDir: 'dist',
 	server: {
-		url: 'http://192.168.178.202:5173',
+		url: 'http://192.168.178.222:5173',
 		cleartext: true
 	},
 	plugins: {

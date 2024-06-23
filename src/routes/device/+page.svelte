@@ -12,13 +12,15 @@
 	import { cubicOut } from 'svelte/easing';
 	import Control from '../../components/device/Control.svelte';
 	import InputItems from '../../components/device/InputItems.svelte';
+	import Display from '../../components/device/Display.svelte';
 	let id;
 	let device = 'loading';
 	let index = 0;
 	let selectedIndex = 0;
 	let deviceTabs = {
 		DISPLAY: {
-			fullscreen: true
+			fullscreen: true,
+			component: Display
 		},
 		FLOWS: {},
 		GENERAL: {

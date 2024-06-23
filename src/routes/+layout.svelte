@@ -124,8 +124,19 @@
 			};
 		});
 		// remove the status from the list devies
-		if (value) {
+		if (value && valueJson.list.length > 0) {
 			devices.set(valueJson);
+		} else {
+			devices.set({
+				...$devices,
+				list: [
+					{
+						id: 'test',
+						name: 'Test',
+						status: '\u200b'
+					}
+				]
+			});
 		}
 	}
 	onMount(() => {

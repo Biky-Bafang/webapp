@@ -310,14 +310,15 @@
 								if (device.loading) return;
 								let type = device.connectedTo;
 								if (device.status !== 'connected' || !device.connectedTo) {
-									type = await protocolModal.request();
-									if (!type) return;
+									// type = await protocolModal.request();
+									// if (!type) return;
 								}
 
-								let connection = await device[type]?.connect();
-								if (!connection) return;
+								// let connection = await device[type]?.connect();
+								// if (!connection) return;
 								await new Promise((resolve) => setTimeout(resolve, 100));
-								if (connection) await device[type].sync();
+								// if (connection) await device[type].sync();
+								device.status = 'connected';
 								goto(`/device?id=${encodeURIComponent(device.id)}`);
 							} catch (error) {
 								device.loading = false;
