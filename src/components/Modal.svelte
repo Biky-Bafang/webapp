@@ -89,8 +89,8 @@
 								<ThemeIcon
 									variant="light"
 									override={{
-										borderRadius: '50%'
-										// center
+										borderRadius: '50%',
+										margin: '15px 0 0 0'
 									}}
 									size={65}
 									{color}
@@ -253,7 +253,6 @@
 		justify-content: center;
 	}
 	.text {
-		margin: 1rem 0;
 		height: 100%;
 	}
 	.title {

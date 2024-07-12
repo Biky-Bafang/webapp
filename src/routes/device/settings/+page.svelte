@@ -24,6 +24,7 @@
 	} from '$lib/general';
 	let id;
 	let device = 'loading';
+	let interval;
 	$: if ((!device || device?.status !== 'connected') && browser && device !== 'loading') {
 		// return if rebooting
 		if (!settingsItems?.[4]?.loading) {
@@ -35,13 +36,8 @@
 			type: 'loading'
 		}
 	];
-	onMount(async () => {
-		id = $page.url.searchParams.get('id');
-		device = $devices.list.find((device) => device.id === id);
-		devices.subscribe((value) => {
-			device = value.list.find((device) => device.id === id);
-		});
-		await device[device.connectedTo]?.sync();
+	let updateSettings = async (device = {}) => {
+		device = await device[device.connectedTo]?.sync();
 
 		settingsItems = [
 			{
@@ -83,6 +79,20 @@
 				hex: 0x04,
 				options: ['3 dBm', '6 dBm', '9 dBm', '12 dBm', '15 dBm', '18 dBm', '21 dBm'],
 				value: device?.txPower + ' dBm'
+			},
+			{
+				type: 'input',
+				label: 'Serial1 RX TX invert',
+				hex: 0x05,
+				options: [true, false],
+				value: device?.invertSerial1
+			},
+			{
+				type: 'input',
+				label: 'Serial2 RX TX invert',
+				hex: 0x06,
+				options: [true, false],
+				value: device?.invertSerial2
 			},
 			{
 				type: 'divider'
@@ -156,18 +166,31 @@
 					'Firmware: 1.0.0',
 					`Hardware: 1.0.0`,
 					`Status: ${device?.status}`,
-					`Batch: ${device?.batch || 1}`
+					`SD Card: ${device?.sdCard ? 'Inserted' : 'Not inserted'}`
 				]
 			}
 		];
-	});
-	// if you leave destroy this page
-	onDestroy(() => {
+	};
+	onMount(async () => {
+		id = $page.url.searchParams.get('id');
+		device = $devices.list.find((device) => device.id === id);
+		devices.subscribe((value) => {
+			device = value.list.find((device) => device.id === id);
+		});
+
 		settingsItems = [
 			{
 				type: 'loading'
 			}
 		];
+		// sync every 5 second
+		updateSettings(device);
+		interval = setInterval(async () => {
+			updateSettings(device);
+		}, 750);
+	});
+	onDestroy(() => {
+		clearInterval(interval);
 	});
 </script>
 
@@ -209,6 +232,8 @@
 						}
 					}}
 					on:click={() => {
+						if (item.readOnly) return;
+
 						// go to /edit?name={item.label}&value={item.value}&hex={item.hex}
 						goto(
 							`/device/settings/edit?id=${id}&name=${item.label}&value=${item.value}&hex=${item.hex}${item.options ? '&options=' + item.options : ''}`

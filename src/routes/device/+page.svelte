@@ -1,7 +1,7 @@
 <script>
 	import { goto, onNavigate } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { devices } from '$lib/stores';
+	import { devices, selectedTab } from '$lib/stores';
 	import { faGear, faPlus } from '@fortawesome/free-solid-svg-icons';
 	import { NativeSelect, UnstyledButton } from '@svelteuidev/core';
 	import { onMount } from 'svelte';
@@ -13,16 +13,21 @@
 	import Control from '../../components/device/Control.svelte';
 	import InputItems from '../../components/device/InputItems.svelte';
 	import Display from '../../components/device/Display.svelte';
+	import Flow from '../../components/device/Flow.svelte';
+	import { io } from '@svelteuidev/composables';
 	let id;
 	let device = 'loading';
 	let index = 0;
-	let selectedIndex = 0;
+	let selectedIndex = $selectedTab || 0;
+	let loaded = false;
 	let deviceTabs = {
 		DISPLAY: {
 			fullscreen: true,
 			component: Display
 		},
-		FLOWS: {},
+		FLOWS: {
+			component: Flow
+		},
 		GENERAL: {
 			component: InputItems,
 			hex: 0x01,
@@ -200,7 +205,7 @@
 		}
 	};
 	$: if ((!device || device?.status !== 'connected') && browser && device !== 'loading') {
-		goto('/');
+		// goto('/');
 	}
 	let width;
 	let height;
@@ -210,6 +215,10 @@
 		devices.subscribe((value) => {
 			device = value.list.find((device) => device.id === id);
 		});
+		// set loaded to true after 50ms
+		setTimeout(() => {
+			loaded = true;
+		}, 50);
 	});
 </script>
 
@@ -235,14 +244,22 @@
 	</UnstyledButton>
 </div>
 <div class="selectorContainer">
-	<TinySlider let:setIndex on:change={() => alert('test')}>
+	<TinySlider let:setIndex on:change={() => {}}>
 		{#each Object.keys(deviceTabs) as tab, i}
 			<div
 				class="tab"
 				class:active={i === selectedIndex}
 				aria-hidden
+				use:io={{ threshold: 1 }}
+				on:change={() => {
+					// if it is the selected tab set the index
+					if (i === selectedIndex && !loaded) {
+						setIndex(i - 1 < 0 ? 0 : i - 1);
+					}
+				}}
 				on:click={() => {
 					selectedIndex = i;
+					$selectedTab = i;
 					setIndex(i - 1 < 0 ? 0 : i - 1);
 				}}
 			>
@@ -262,6 +279,7 @@
 					<svelte:component
 						this={deviceTabs[Object.keys(deviceTabs)[selectedIndex]].component}
 						inputs={deviceTabs[Object.keys(deviceTabs)[selectedIndex]].settings}
+						deviceId={device.id}
 					/>
 				{/if}
 			</div>
@@ -273,6 +291,7 @@
 				this={deviceTabs[Object.keys(deviceTabs)[selectedIndex]].bottomComponent}
 				title={Object.keys(deviceTabs)[selectedIndex]}
 				deviceId={id}
+				{device}
 				hex={deviceTabs[Object.keys(deviceTabs)[selectedIndex]].hex}
 				on:read={(e) => {
 					let response = e.detail;

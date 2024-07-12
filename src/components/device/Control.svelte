@@ -1,10 +1,11 @@
 <script>
 	import { readController } from '$lib/general';
 	import { Button, Loader } from '@svelteuidev/core';
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
 	export let title;
 	export let hex;
 	export let deviceId;
+	export let device = {};
 	const dispatch = createEventDispatcher();
 	let read = {
 		loading: false
@@ -12,6 +13,10 @@
 	let write = {
 		loading: false
 	};
+	onMount(() => {
+		// alert all device functions
+		console.log(device);
+	});
 </script>
 
 <main>
@@ -22,7 +27,7 @@
 			on:click={async () => {
 				read.loading = true;
 				try {
-					let response = await readController(deviceId, hex);
+					let response = await device[device.connectedTo].readController(deviceId, hex);
 					dispatch('read', response);
 				} catch (e) {
 					alert(e);

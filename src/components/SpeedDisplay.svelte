@@ -29,7 +29,7 @@
 		});
 	}
 	onMount(() => {
-		speed = 6;
+		speed = 20;
 	});
 </script>
 

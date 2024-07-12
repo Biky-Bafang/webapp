@@ -1,7 +1,8 @@
 import { BleClient } from '@capacitor-community/bluetooth-le';
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { characteristicUuid, serviceUuid } from './general';
 let accumulatedData;
+const selectedTab = writable(0);
 const defaultFunctions = {
 	async add(device, type) {
 		// connect to the device first
@@ -30,6 +31,15 @@ function hex2a(hexx) {
 const devices = writable({
 	list: [],
 	bluetooth: {
+		async disconnect(deviceId) {
+			await BleClient.disconnect(deviceId);
+			devices.set({
+				...oldDevices,
+				list: oldDevices.list.map((d) =>
+					d.id === deviceId ? { ...d, connectedTo: '', status: 'disconnected' } : d
+				)
+			});
+		},
 		handleCharacteristicValueChanged(event, deviceId) {
 			// convert the dataview event to a hexadecimal string
 			try {
@@ -143,7 +153,7 @@ const devices = writable({
 				...oldDevices,
 				list: oldDevices.list.map((d) => (d.id === deviceId ? device : d))
 			});
-			return;
+			return device;
 		},
 		async readController(deviceId, hexCode) {
 			await BleClient.write(
@@ -160,6 +170,31 @@ const devices = writable({
 			alert(JSON.stringify(device));
 
 			return device;
+		},
+		async syncFlows(deviceId) {
+			// delete the device.settings from devices
+			devices.set({
+				...oldDevices,
+				list: oldDevices.list.map((d) => (d.id === deviceId ? { ...d, settings: null } : d))
+			});
+			await BleClient.write(
+				deviceId,
+				serviceUuid,
+				characteristicUuid,
+				new Uint8Array([0xf1, 0x04])
+			);
+			let device = oldDevices.list.find((d) => d.id === deviceId);
+			while (!device.settings) {
+				await new Promise((resolve) => setTimeout(resolve, 100));
+				device = oldDevices.list.find((d) => d.id === deviceId);
+			}
+			devices.set({
+				...oldDevices,
+				list: oldDevices.list.map((d) => (d.id === deviceId ? { ...d, flows: device.settings } : d))
+			});
+			return {
+				...device.settings
+			};
 		}
 	},
 	wifi: {},
@@ -170,7 +205,7 @@ const modal = writable({
 	bluetooth: false,
 	wifi: false
 });
-let oldDevices = {};
+let oldDevices = get(devices);
 
 devices.subscribe((value) => {
 	// Flag to check if any device needs updating
@@ -185,11 +220,20 @@ devices.subscribe((value) => {
 					async connect(deviceId = d.id) {
 						return await oldDevices.bluetooth.connect(deviceId);
 					},
+					async disconnect(deviceId = d.id) {
+						return await oldDevices.bluetooth.disconnect(deviceId);
+					},
 					async reboot(deviceId = d.id) {
 						return await oldDevices.bluetooth.reboot(deviceId);
 					},
 					async sync(deviceId = d.id) {
 						return await oldDevices.bluetooth.sync(deviceId);
+					},
+					async readController(deviceId = d.id, hexCode) {
+						return await oldDevices.bluetooth.readController(deviceId, hexCode);
+					},
+					async syncFlows(deviceId = d.id) {
+						return await oldDevices.bluetooth.syncFlows(deviceId);
 					}
 				},
 				wifi: {},
@@ -206,4 +250,4 @@ devices.subscribe((value) => {
 		devices.set(oldDevices);
 	}
 });
-export { devices, consoleMessages, modal, defaultFunctions };
+export { devices, consoleMessages, modal, defaultFunctions, selectedTab };

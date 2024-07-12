@@ -1,6 +1,6 @@
 <script>
 	import { goto, onNavigate } from '$app/navigation';
-	import { devices, modal } from '$lib/stores';
+	import { devices, modal, selectedTab } from '$lib/stores';
 	import {
 		faChevronRight,
 		faGear,
@@ -60,7 +60,9 @@
 			type: 'disconnect',
 			icon: faLinkSlash,
 			action: async (device) => {
-				await device.disconnect();
+				let type = device.connectedTo;
+				device[type]?.disconnect();
+				await new Promise((resolve) => setTimeout(resolve, 2));
 				return;
 			}
 		},
@@ -239,6 +241,8 @@
 							device.loading = false;
 							// goto(`/device?id=${encodeURIComponent(device.id)}`);
 						} catch (error) {
+							$modal.bluetooth = false;
+							device.loading = false;
 							alert(error.message);
 						}
 					}}
@@ -284,7 +288,7 @@
 						<div class="plusIcon">
 							<Fa icon={faPlus} size="1.3x" />
 						</div>
-						Add device</Flex
+						Add Device</Flex
 					></Button
 				>
 			</div>
@@ -310,20 +314,21 @@
 								if (device.loading) return;
 								let type = device.connectedTo;
 								if (device.status !== 'connected' || !device.connectedTo) {
-									// type = await protocolModal.request();
-									// if (!type) return;
+									type = await protocolModal.request();
+									if (!type) return;
 								}
 
-								// let connection = await device[type]?.connect();
-								// if (!connection) return;
+								let connection = await device[type]?.connect();
+								if (!connection) return;
 								await new Promise((resolve) => setTimeout(resolve, 100));
-								// if (connection) await device[type].sync();
+								if (connection) await device[type].sync();
 								device.status = 'connected';
+								$selectedTab = 0;
 								goto(`/device?id=${encodeURIComponent(device.id)}`);
 							} catch (error) {
-								device.loading = false;
 								alert(error.message);
 							}
+							device.loading = false;
 						}}
 					>
 						<div class="deviceContainer" class:noHover={device.longpress}>

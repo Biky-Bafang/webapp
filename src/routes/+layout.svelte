@@ -3,7 +3,7 @@
 	import Header from '../components/Header.svelte';
 	import './styles.css';
 	import { page } from '$app/stores';
-	import { goto, onNavigate } from '$app/navigation';
+	import { beforeNavigate, goto, onNavigate } from '$app/navigation';
 	import { faCode, faGear, faPersonBiking } from '@fortawesome/free-solid-svg-icons';
 	import { App as CapacitorApp } from '@capacitor/app';
 	import Fa from 'svelte-fa';
@@ -30,6 +30,9 @@
 				edit: {
 					color: '#2c2d2e'
 				}
+			},
+			flow: {
+				color: '#2c2d2e'
 			},
 			color: '#1c1d1e'
 		},
@@ -113,31 +116,32 @@
 	// Load devices from Capacitor Storage
 	async function loadDevices() {
 		const { value } = await Storage.get({ key: 'devices' });
-		let tempDevices = $devices;
+		let tempDevices = { ...$devices };
 		delete tempDevices.list;
-		let valueJson = { ...JSON.parse(value), ...$devices };
+		let valueJson = { ...JSON.parse(value), ...tempDevices };
 		valueJson.list = valueJson.list.map((device) => {
 			return {
 				id: device.id,
 				name: device.name,
+				flows: device.flows,
 				status: '\u200b'
 			};
 		});
 		// remove the status from the list devies
 		if (value && valueJson.list.length > 0) {
 			devices.set(valueJson);
-		} else {
-			devices.set({
-				...$devices,
-				list: [
-					{
-						id: 'test',
-						name: 'Test',
-						status: '\u200b'
-					}
-				]
-			});
+			return;
 		}
+		// set devices to a custom named object for debugging
+		devices.set({
+			list: [
+				{
+					id: '1',
+					name: 'Device 1',
+					status: '\u200b'
+				}
+			]
+		});
 	}
 	onMount(() => {
 		loadDevices();

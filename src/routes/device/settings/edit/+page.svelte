@@ -68,7 +68,15 @@
 			try {
 				loading = true;
 				// check if its a select or input
-				if (options.length > 0) {
+				//  if it is true or false
+				if (value === 'true' || value === 'false') {
+					await BleClient.write(
+						device.id,
+						serviceUuid,
+						characteristicUuid,
+						new Uint8Array([0xf2, hex, value === 'true' ? 1 : 0])
+					);
+				} else if (options.length > 0) {
 					// send it as a hex value. So first convert to hex as int
 					value = parseInt(value);
 					await BleClient.write(
