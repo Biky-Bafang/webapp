@@ -105,7 +105,7 @@
 	.pointer {
 		position: absolute;
 		transform: rotate(-45deg);
-		transition: transform 0.5s;
+		transition: transform 3s cubic-bezier(0.4, 0, 0.2, 1);
 		fill: #4a7ba3;
 		z-index: 0;
 	}

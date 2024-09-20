@@ -205,7 +205,7 @@
 		}
 	};
 	$: if ((!device || device?.status !== 'connected') && browser && device !== 'loading') {
-		// goto('/');
+		goto('/');
 	}
 	let width;
 	let height;

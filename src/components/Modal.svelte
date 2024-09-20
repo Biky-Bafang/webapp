@@ -137,7 +137,6 @@
 		width: 100%;
 		text-align: left;
 		margin: 0 auto;
-		height: 100%;
 	}
 	.centerText {
 		display: flex;
@@ -194,7 +193,6 @@
 		background: #0f0f0f;
 		border-radius: 1.5rem;
 		position: absolute;
-		height: fit-content;
 		max-height: 100%;
 		overflow: auto;
 		box-shadow:
@@ -251,9 +249,6 @@
 		gap: 1.5rem;
 		align-items: center;
 		justify-content: center;
-	}
-	.text {
-		height: 100%;
 	}
 	.title {
 		font-size: 1.5rem;

@@ -55,19 +55,22 @@ const devices = writable({
 				}
 				// convert value to ascii
 				let chunk = hex2a(value);
+				// console log incoming data
+				console.log('Received:', chunk);
 
 				accumulatedData += chunk;
-				// Assuming the transmission ends when a specific delimiter is found, e.g., "\n"
-				if (chunk.endsWith('}')) {
+				if (value.endsWith('9a')) {
+					value = value.slice(0, -2);
+					accumulatedData = accumulatedData.slice(0, -1);
 					oldDevices.bluetooth.processData(accumulatedData, deviceId);
 					accumulatedData = ''; // Reset for the next message
 				}
-			} catch (error) {
-				alert('error: ' + error.message);
-			}
+			} catch (error) {}
 		},
 		processData(data, deviceId) {
 			try {
+				// filter data with non-ascii characters with �
+				data = data.replace(/[^\x20-\x7E]/g, '�');
 				let jsonData = JSON.parse(data);
 
 				// set device data to the parsed JSON
@@ -87,7 +90,7 @@ const devices = writable({
 					}
 				]);
 			} catch (error) {
-				alert(error.message);
+				console.error(error.message);
 			}
 		},
 		async connect(deviceId) {
@@ -118,8 +121,6 @@ const devices = writable({
 					alert(JSON.stringify(oldDevices.bluetooth));
 				}
 			});
-			// send 0x01 to recieve data
-			await BleClient.write(deviceId, serviceUuid, characteristicUuid, new Uint8Array([0x01]));
 
 			devices.set({
 				...oldDevices,

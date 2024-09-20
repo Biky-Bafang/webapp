@@ -6,9 +6,16 @@
 	import './flow.css';
 	import { faPersonArrowUpFromLine, faPlay } from '@fortawesome/free-solid-svg-icons';
 	import Finish from '../flowTypes/Finish.svelte';
+	import Edge from '../flowTypes/ButtonEdge.svelte';
 	import ButtonEdge from '../flowTypes/ButtonEdge.svelte';
+	import AddEdge from '../flowTypes/AddEdge.svelte';
 
 	const nodes = writable([
+		{
+			id: '10',
+			position: { x: 0, y: 0 },
+			data: { label: 'Trigger', title: 'hey', icon: faPlay }
+		},
 		{
 			id: '11',
 			position: { x: 0, y: 0 },
@@ -16,24 +23,28 @@
 		},
 		{
 			id: '12',
-			position: { x: 0, y: 150 },
+			position: { x: 0, y: 0 },
 			data: { title: 'test' }
 		},
 		{
 			id: '13',
-			position: { x: 0, y: 300 },
+			position: { x: 0, y: 0 },
 			data: { title: 'test' }
 		},
 		{
-			id: '13',
-			position: { x: 0, y: 300 },
+			id: '14',
+			position: { x: 0, y: 0 },
 			data: { title: 'test' }
 		},
-
 		{
-			id: '21',
-			position: { x: 400, y: 0 },
-			data: { label: 'Trigger', title: 'hey', icon: faPlay }
+			id: '15',
+			position: { x: 0, y: 0 },
+			data: { title: 'test' }
+		},
+		{
+			id: '16',
+			position: { x: 0, y: 0 },
+			data: { title: 'test' }
 		}
 	]);
 	const edges = writable([
@@ -48,36 +59,118 @@
 			target: '13'
 		}
 	]);
-	$: if ($edges) {
+	$: if ($nodes) {
+		// automatically position the nodes
+		let lastTrigger = $nodes
+			.filter((node) => node.data.label === 'Trigger')
+			.reduce((prev, current) => (prev.position.x > current.position.x ? prev : current));
+		// position every trigger 400 pixels to the right for each index and filter the finish nodes
+		$nodes
+			.filter((node) => node.data.label === 'Trigger')
+			.forEach((node, index) => {
+				node.position = { x: 400 * index, y: 0 };
+			});
+		let currentXIndex = 1;
+		let currentYIndex = 0;
+		$nodes
+			.filter((node) => node.data.label !== 'Trigger')
+			.filter((node) => node.type !== 'finish')
+			.forEach((node, index) => {
+				for (let i = 0; i < $edges.length; i++) {
+					let edge = $edges[i];
+					if (edge.source === node.id || edge.target === node.id) return;
+				}
+				// while the { x: lastTrigger.position.x + 275 * currentXIndex, y: 125 * currentYIndex } x and y of these is one of the nodes then add 1 to the x and y
+				// if the x is 3 then add 1 to the y and set x to 1
+				while (
+					$nodes.find(
+						(n) =>
+							n.position.x === lastTrigger.position.x + 275 * currentXIndex &&
+							n.position.y === 225 * currentYIndex
+					)
+				) {
+					currentXIndex++;
+					if (currentXIndex > 2) {
+						currentXIndex = 1;
+						currentYIndex++;
+					}
+				}
+				node.position = { x: lastTrigger.position.x + 275 * currentXIndex, y: 225 * currentYIndex };
+				currentXIndex++;
+				if (currentXIndex > 2) {
+					currentXIndex = 1;
+					currentYIndex++;
+				}
+			});
+		currentXIndex = 1;
+		currentYIndex = 0;
+		$nodes
+			.filter((node) => node.data.label !== 'Trigger')
+			.filter((node) => node.type !== 'finish')
+			.forEach((node, index) => {
+				let sourceNodeEdge = $edges.find(
+					(edge) => edge.target === node.id && edge.source !== node.id
+				);
+				if (!sourceNodeEdge) return;
+				let sourceNode = $nodes.find((node) => node.id === sourceNodeEdge.source);
+				if (!sourceNode) return;
+				node.position = {
+					x: sourceNode?.position?.x,
+					y: sourceNode?.position?.y + (index == 1 ? 150 : 180)
+				};
+			});
+		// add the finish node here instead
+		$nodes
+			.filter((node) => node.type !== 'finish')
+			.forEach((node, index) => {
+				// if the node doesnt have a target, add the finish node as target
+				if (!$edges.find((edge) => edge.source === node.id)) {
+					// add the finish node
+					// make an unique id
+					let finishId = 'finish' + Math.random();
+					nodes.update((nodes) => {
+						nodes.push({
+							id: finishId,
+							position: { x: node.position.x + 96.3, y: node.position.y + 150 },
+							type: 'finish',
+							data: { type: 'finish' }
+						});
+						return nodes;
+					});
+					// add the edge
+					edges.update((edges) => {
+						edges.push({
+							id: 'e3-' + finishId,
+							source: node.id,
+							target: finishId,
+							type: node.data.type === 'finish' ? 'button' : 'addButton'
+						});
+						return edges;
+					});
+				}
+			});
+		// always align finish nodes with the source node
 		$nodes.forEach((node) => {
-			// return if the node is a finish node
-			if (node.type === 'finish') return;
-			// if node doesnt have a target, add the finish node as target
-			if (!$edges.find((edge) => edge.source === node.id)) {
-				// add the finish node
-				// make an unique id
-				let finishId = 'finish' + Math.random();
-				nodes.update((nodes) => {
-					nodes.push({
-						id: finishId,
-						position: { x: node.position.x + 96.3, y: node.position.y + 150 },
-						type: 'finish',
-						data: { type: 'finish' }
-					});
-					return nodes;
-				});
-				// add the edge
-				edges.update((edges) => {
-					edges.push({
-						id: 'e3-' + finishId,
-						source: node.id,
-						target: finishId,
-						type: 'button'
-					});
-					return edges;
-				});
+			if (node.type === 'finish') {
+				let sourceNodeEdge = $edges.find(
+					(edge) => edge.target === node.id && edge.source !== node.id
+				);
+				if (!sourceNodeEdge) return;
+				let sourceNode = $nodes.find((node) => node.id === sourceNodeEdge.source);
+				if (!sourceNode) return;
+				node.position = {
+					x: sourceNode?.position?.x + 96.3,
+					y: sourceNode?.position?.y + 150
+				};
 			}
 		});
+		$nodes = $nodes;
+		// wait 1ms
+		setTimeout(() => {
+			$nodes = $nodes;
+		}, 1);
+	}
+	$: if ($edges) {
 		// if the finish node doesnt have a source, remove it
 		$nodes.forEach((node) => {
 			if (node.data.type === 'finish') {
@@ -111,7 +204,8 @@
 		finish: Finish
 	};
 	const edgeTypes = {
-		button: ButtonEdge
+		button: ButtonEdge,
+		addButton: AddEdge
 	};
 </script>
 

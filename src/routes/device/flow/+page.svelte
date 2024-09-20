@@ -1,7 +1,7 @@
 <script>
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { devices } from '$lib/stores';
+	import { devices, modal } from '$lib/stores';
 	import { faChevronLeft, faGear, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 	import { browser } from '@svelteuidev/composables';
 
@@ -12,6 +12,7 @@
 	import Modal from '../../../components/Modal.svelte';
 
 	let device = 'loading';
+	let modalExit = false;
 	let id;
 	$: if ((!device || device?.status !== 'connected') && browser && device !== 'loading') {
 	}
@@ -23,6 +24,8 @@
 		});
 	});
 	beforeNavigate((navigation) => {
+		if (modalExit) return;
+		modalExit = true;
 		cancel();
 	});
 	let flow = {
@@ -30,7 +33,13 @@
 	};
 </script>
 
-<Modal opened title="Unsaved Changes" position="top" color="red">
+<Modal
+	title="Unsaved Changes"
+	position="top"
+	color="red"
+	opened={modalExit}
+	on:close={() => (modalExit = false)}
+>
 	<p style="margin: 0 15px 15px 15px; text-align: center;">
 		You are about to lose your changes. Are you sure you want to continue?
 	</p>
@@ -38,6 +47,10 @@
 	<Button
 		slot="leftButton"
 		color="red"
+		on:click={() => {
+			goto('/device?id=' + device.id);
+			modalExit = false;
+		}}
 		override={{
 			width: 'calc(50% - 0.5rem)'
 		}}>Lose Changes</Button
@@ -45,6 +58,9 @@
 	<Button
 		slot="rightButton"
 		color="gray"
+		on:click={() => {
+			modalExit = false;
+		}}
 		override={{
 			width: 'calc(50% - 0.5rem)'
 		}}>Cancel</Button
@@ -77,7 +93,7 @@
 <style>
 	.flowContainer {
 		width: 100%;
-		height: 100%;
+		height: 0;
 	}
 	.header {
 		display: grid;

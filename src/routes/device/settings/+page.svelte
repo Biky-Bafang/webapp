@@ -26,8 +26,7 @@
 	let device = 'loading';
 	let interval;
 	$: if ((!device || device?.status !== 'connected') && browser && device !== 'loading') {
-		// return if rebooting
-		if (!settingsItems?.[4]?.loading) {
+		if (!settingsItems?.[10]?.loading) {
 			goto('/');
 		}
 	}
@@ -43,8 +42,36 @@
 			{
 				type: 'input',
 				label: 'Name',
-				hex: 0x01,
+				hex: 0x00,
 				value: device.name
+			},
+			{
+				type: 'divider',
+				label: 'Connectivity'
+			},
+			{
+				type: 'input',
+				label: 'Wifi SSID',
+				hex: 0x01,
+				value: device.ssid
+			},
+			{
+				type: 'input',
+				label: 'Wifi Password',
+				hex: 0x02,
+				value: device.password,
+				hidden: true
+			},
+			{
+				type: 'input',
+				label: 'BLE Tx Power Level',
+				hex: 0x04,
+				options: ['3 dBm', '6 dBm', '9 dBm', '12 dBm', '15 dBm', '18 dBm', '21 dBm'],
+				value: device?.txPower + ' dBm'
+			},
+			{
+				type: 'divider',
+				label: 'Serial'
 			},
 			{
 				type: 'input',
@@ -73,13 +100,7 @@
 				],
 				value: device?.packetDelay + ' ms'
 			},
-			{
-				type: 'input',
-				label: 'BLE Tx Power Level',
-				hex: 0x04,
-				options: ['3 dBm', '6 dBm', '9 dBm', '12 dBm', '15 dBm', '18 dBm', '21 dBm'],
-				value: device?.txPower + ' dBm'
-			},
+
 			{
 				type: 'input',
 				label: 'Serial1 RX TX invert',
@@ -106,10 +127,10 @@
 					click: async () => {
 						try {
 							// set self button to loading
-							settingsItems[4].loading = true;
+							settingsItems[10].loading = true;
 							await device[device.connectedTo].reboot();
 							await device[device.connectedTo].sync();
-							settingsItems[4].loading = false;
+							settingsItems[10].loading = false;
 						} catch (e) {
 							alert(e);
 						}
@@ -124,17 +145,18 @@
 				on: {
 					click: async () => {
 						try {
-							settingsItems[5].loading = true;
+							settingsItems[11].loading = true;
 							await factoryReset(device.id);
 							await new Promise((resolve) => {
 								setTimeout(() => {
 									resolve();
 								}, 500);
 							});
-							settingsItems[5].loading = false;
-							settingsItems[4].loading = true;
+							settingsItems[11].loading = false;
+							settingsItems[10].loading = true;
 							await device[device.connectedTo].reboot();
 							await device[device.connectedTo].sync();
+							settingsItems[10].loading = false;
 						} catch (e) {
 							alert(e);
 						}
@@ -163,10 +185,10 @@
 				type: 'text',
 				textItems: [
 					`Mac: ${device?.id}`,
-					'Firmware: 1.0.0',
-					`Hardware: 1.0.0`,
-					`Status: ${device?.status}`,
-					`SD Card: ${device?.sdCard ? 'Inserted' : 'Not inserted'}`
+					`Firmware: ${device?.firmwareVersion || '?.?.?'}`,
+					`Hardware: ${device?.hardwareVersion || '?.?.?'}`,
+					`WiFi IP: ${device?.wifiStatus === 0 ? 'Not connected' : device?.ip}`,
+					`SD Card: ${device?.sdCardStatus === 0 ? 'Not inserted' : device?.sdCardStatus === 1 ? 'Inserted' : 'Mount Error'}`
 				]
 			}
 		];
@@ -243,12 +265,12 @@
 					<div class="inputContainer">
 						<label>{item.label}</label>
 						<p>
-							{item.value}
+							{item.hidden ? '●'.repeat(10) : item.value}
 						</p>
 					</div>
 				</Button>
 			{:else if item.type === 'divider'}
-				<Divider color="grey" />
+				<Divider color="grey" label={item.label} labelPosition="center" />
 			{:else if item.type === 'button'}
 				<div class="buttonContainer">
 					<Button
